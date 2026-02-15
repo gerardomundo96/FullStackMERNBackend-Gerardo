@@ -1,30 +1,49 @@
 const User = require('../models/User');
+const Role = require('../models/Role');
 const bcrypt = require('bcrypt');
 
-const createAdmin = async () => {
+exports.createInitialData = async () => {
     try {
-        // 1. Verificar si ya existen usuarios para no duplicar
-        const count = await User.estimatedDocumentCount();
-        if (count > 0) return;
 
-        // 2. Encriptar contraseña (siempre hazlo por seguridad)
-        const hashedPassword = await bcrypt.hash('admin123', 10);
+        // 1️⃣ Crear roles si no existen
+        const rolesCount = await Role.countDocuments();
 
-        // 3. Crear el usuario administrador
-        const adminUser = new User({
-            nombre: 'Administrador',
-            apellido: 'Sistema',
-            email: 'admin@correo.com',
-            password: hashedPassword,
-            rol: 'ADMIN_ROLE',
-            status: 'active'
-        });
+        if (rolesCount === 0) {
+            await Role.insertMany([
+                { name: 'ADMIN_ROLE', description: 'Administrador del sistema' },
+                { name: 'INVENTORY_ROLE', description: 'Encargado de inventario' },
+                { name: 'SALES_ROLE', description: 'Encargado de ventas' }
+            ]);
+            console.log('Roles creados correctamente');
+        }
 
-        await adminUser.save();
-        console.log('Usuario administrador creado por defecto');
+        // 2️⃣ Crear admin si no existe
+        const adminEmail = 'admin@admin.com';
+        const existingUser = await User.findOne({ email: adminEmail });
+
+        if (!existingUser) {
+
+            const adminRole = await Role.findOne({ name: 'ADMIN_ROLE' });
+
+            const hashedPassword = await bcrypt.hash('123456', 10);
+
+            const newAdmin = new User({
+                nombre: 'Admin',
+                apellido: 'Principal',
+                email: adminEmail,
+                telefono: '00000000',
+                password: hashedPassword,
+                role: adminRole._id,
+                status: 'active'
+            });
+
+            await newAdmin.save();
+            console.log('Usuario admin creado correctamente');
+        }
+
     } catch (error) {
-        console.error('Error creando usuario por defecto:', error);
+        console.error('Error en initial setup:', error);
     }
 };
 
-module.exports = { createAdmin };
+

@@ -1,25 +1,33 @@
+const User = require('../models/User');
+const Role = require('../models/Role');
+
 const checkRole = (...rolesPermitidos) => {
-    return (req, res, next) => {
-        // 1. Verificar que el middleware de auth ya se ejecutó
-        if (!req.user) {
-            return res.status(500).json({
+    return async (req, res, next) => {
+        try {
+            const user = await User.findById(req.user.id).populate('role');
+
+            if (!user || !user.role) {
+                return res.status(403).json({
+                    ok: false,
+                    msg: 'Usuario sin rol asignado'
+                });
+            }
+
+            if (!rolesPermitidos.includes(user.role.name)) {
+                return res.status(403).json({
+                    ok: false,
+                    msg: `El usuario ${user.email} no tiene permisos de: [${rolesPermitidos}]`
+                });
+            }
+
+            next();
+
+        } catch (error) {
+            res.status(500).json({
                 ok: false,
-                msg: 'Se intenta verificar el rol sin validar el token primero'
+                error: error.message
             });
         }
-
-        // 2. Extraer el rol del usuario (inyectado por el middleware de JWT)
-        const {rol, email} = req.user;
-        console.log({rol, email, rolesPermitidos});
-        // 3. Verificar si el rol del usuario está dentro de los permitidos
-        if (!rolesPermitidos.includes(rol)) {
-            return res.status(403).json({
-                ok: false,
-                msg: `El usuario ${email} no tiene permisos de: [${rolesPermitidos}]`
-            });
-        }
-
-        next();
     };
 };
 
